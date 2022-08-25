@@ -371,7 +371,7 @@ fn main() {
         let current_dir = std::env::current_dir().unwrap();
         let snappy_search = current_dir.join("snappy");
         let rocks_search = current_dir.join("rocksdb");
-        let musl_libs = env::var("MUSL_LIBS");
+        let musl_libs = env::var("MUSL_LIBS").unwrap();
 
         println!("cargo:rustc-link-search={}", musl_libs);
         println!("cargo:rustc-link-search={}", snappy_search.display());
