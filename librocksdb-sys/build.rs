@@ -359,8 +359,30 @@ fn main() {
         update_submodules();
     }
     bindgen_rocksdb();
+    let target = env::var("TARGET").unwrap();
+    if target.contains("musl") {
+        std::process::Command::new("sh")
+            .args(&[
+                "build.sh"
+            ])
+            .output()
+            .expect("Failed to build librocksdb");   
 
-    if !try_to_find_and_link_lib("ROCKSDB") {
+        let current_dir = std::env::current_dir().unwrap();
+        let snappy_search = current_dir.join("snappy");
+        let rocks_search = current_dir.join("rocksdb");
+        let musl_libs = env::var("MUSL_LIBS");
+
+        println!("cargo:rustc-link-search={}", musl_libs);
+        println!("cargo:rustc-link-search={}", snappy_search.display());
+        println!("cargo:rustc-link-search={}", rocks_search.display());
+        println!("cargo:rustc-link-lib=static=stdc++");
+        println!("cargo:rustc-link-lib=static=snappy");
+        println!("cargo:rustc-link-lib=static=rocksdb");
+    } else {
+    
+    
+      if !try_to_find_and_link_lib("ROCKSDB") {
         println!("cargo:rerun-if-changed=rocksdb/");
         fail_on_empty_directory("rocksdb");
         build_rocksdb();
@@ -383,7 +405,7 @@ fn main() {
         fail_on_empty_directory("lz4");
         build_lz4();
     }
-
+    }
     // Allow dependent crates to locate the sources and output directory of
     // this crate. Notably, this allows a dependent crate to locate the RocksDB
     // sources and built archive artifacts provided by this crate.
