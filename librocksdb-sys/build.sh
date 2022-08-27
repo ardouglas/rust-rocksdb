@@ -1,7 +1,8 @@
 export CC=x86_64-linux-musl-gcc
 export CXX=x86_64-linux-musl-g++
 export AR=x86_64-linux-musl-ar
-export CFLAGS="-fPIE -static"
+export PORTABLE=1
+export CFLAGS="-DSNAPPY -fPIE -static"
 export CPATH="${PWD}:${PWD}/snappy"
 #echo $CPATH
 if [ ! -f musl-rocksdb ]; then
