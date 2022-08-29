@@ -384,7 +384,7 @@ fn main() {
         println!("cargo:rustc-link-lib=static=snappy");
         println!("cargo:rustc-link-lib=static=rocksdb");
         println!("cargo:rustc-link-lib=dylib=RPCRT4");
-
+        println!("cargo:rustc-link-lib=dylib=SHLWAPI");
         // just link
     } else if target.contains("darwin") && mac_dir.exists() {
         println!("cargo:rustc-link-search={}", mac_dir.display());
