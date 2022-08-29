@@ -383,7 +383,7 @@ fn main() {
         println!("cargo:rustc-link-search={}", windows_dir.display());
         println!("cargo:rustc-link-lib=static=snappy");
         println!("cargo:rustc-link-lib=static=rocksdb");
-        println!("cargo:rustc-link-lib=native=RPCRT4");
+        println!("cargo:rustc-link-lib=dynamic=RPCRT4");
 
         // just link
     } else if target.contains("darwin") && mac_dir.exists() {
