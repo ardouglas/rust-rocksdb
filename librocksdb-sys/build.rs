@@ -360,15 +360,15 @@ fn main() {
     }
     bindgen_rocksdb();
     let target = env::var("TARGET").unwrap();
+    let current_dir = std::env::current_dir().unwrap();
+    let windows_dir = current_dir.join("windows");
+    let mac_dir = current_dir.join("mac");
     if target.contains("musl") {
         std::process::Command::new("sh")
-            .args(&[
-                "build.sh"
-            ])
+            .args(&["build.sh"])
             .output()
-            .expect("Failed to build librocksdb");   
+            .expect("Failed to build librocksdb");
 
-        let current_dir = std::env::current_dir().unwrap();
         let snappy_search = current_dir.join("musl-snappy");
         let rocks_search = current_dir.join("musl-rocksdb");
         let musl_libs = env::var("MUSL_LIBS").unwrap();
@@ -379,33 +379,66 @@ fn main() {
         println!("cargo:rustc-link-lib=static=stdc++");
         println!("cargo:rustc-link-lib=static=snappy");
         println!("cargo:rustc-link-lib=static=rocksdb");
+    } else if target.contains("windows") && windows_dir.exists() {
+        println!("cargo:rustc-link-search={}", windows_dir.display());
+        println!("cargo:rustc-link-lib=static=snappy");
+        println!("cargo:rustc-link-lib=static=rocksdb");
+
+        // just link
+    } else if target.contains("darwin") && mac_dir.exists() {
+        println!("cargo:rustc-link-search={}", mac_dir.display());
+        println!("cargo:rustc-link-lib=static=c++");
+        println!("cargo:rustc-link-lib=static=snappy");
+        println!("cargo:rustc-link-lib=static=rocksdb");
+        
     } else {
-    
-    
-      if !try_to_find_and_link_lib("ROCKSDB") {
-        println!("cargo:rerun-if-changed=rocksdb/");
-        fail_on_empty_directory("rocksdb");
-        build_rocksdb();
-    } else {
-        let target = env::var("TARGET").unwrap();
-        // according to https://github.com/alexcrichton/cc-rs/blob/master/src/lib.rs#L2189
-        if target.contains("apple") || target.contains("freebsd") || target.contains("openbsd") {
-            println!("cargo:rustc-link-lib=dylib=c++");
-        } else if target.contains("linux") {
-            println!("cargo:rustc-link-lib=dylib=stdc++");
+        if !try_to_find_and_link_lib("ROCKSDB") {
+            // println!("cargo:rerun-if-changed=rocksdb/");
+            fail_on_empty_directory("rocksdb");
+            build_rocksdb();
+        } else {
+            let target = env::var("TARGET").unwrap();
+            // according to https://github.com/alexcrichton/cc-rs/blob/master/src/lib.rs#L2189
+            if target.contains("apple") || target.contains("freebsd") || target.contains("openbsd")
+            {
+                println!("cargo:rustc-link-lib=dylib=c++");
+            } else if target.contains("linux") {
+                println!("cargo:rustc-link-lib=dylib=stdc++");
+            }
+        }
+        if cfg!(feature = "snappy") && !try_to_find_and_link_lib("SNAPPY") {
+            // println!("cargo:rerun-if-changed=snappy/");
+            fail_on_empty_directory("snappy");
+            build_snappy();
+        }
+        if cfg!(feature = "lz4") && !try_to_find_and_link_lib("LZ4") {
+            // println!("cargo:rerun-if-changed=lz4/");
+            fail_on_empty_directory("lz4");
+            build_lz4();
+        }
+        let target_dir = PathBuf::from(std::env::var("OUT_DIR").unwrap());
+
+        if target.contains("windows") {
+            std::fs::create_dir(&windows_dir).unwrap();
+
+            let pattern = format!("{}/*.lib", target_dir.display());
+            let glob = glob::glob(&pattern).unwrap();
+            for path in glob.flatten() {
+                let new = windows_dir.join(&path.file_name().unwrap());
+                std::fs::copy(path, new).unwrap();
+            }
+        } else if target.contains("darwin") {
+            std::fs::create_dir(&mac_dir).unwrap();
+
+            let pattern = format!("{}/*.a", target_dir.display());
+            let glob = glob::glob(&pattern).unwrap();
+            for path in glob.flatten() {
+                let new = mac_dir.join(&path.file_name().unwrap());
+                std::fs::copy(path, new).unwrap();
+            }
         }
     }
-    if cfg!(feature = "snappy") && !try_to_find_and_link_lib("SNAPPY") {
-        println!("cargo:rerun-if-changed=snappy/");
-        fail_on_empty_directory("snappy");
-        build_snappy();
-    }
-    if cfg!(feature = "lz4") && !try_to_find_and_link_lib("LZ4") {
-        println!("cargo:rerun-if-changed=lz4/");
-        fail_on_empty_directory("lz4");
-        build_lz4();
-    }
-    }
+
     // Allow dependent crates to locate the sources and output directory of
     // this crate. Notably, this allows a dependent crate to locate the RocksDB
     // sources and built archive artifacts provided by this crate.
