@@ -63,7 +63,9 @@ fn build_rocksdb() {
 
     if cfg!(feature = "lz4") {
         config.define("LZ4", Some("1"));
-        config.include("lz4/lib/");
+        if let Some(path) = env::var_os("DEP_LZ4_INCLUDE") {
+            config.include(path);
+        }
     }
 
     if cfg!(feature = "zstd") {
@@ -246,7 +248,7 @@ fn build_rocksdb() {
     }
 
     for file in lib_sources {
-        config.file(&format!("rocksdb/{file}"));
+        config.file(format!("rocksdb/{file}"));
     }
 
     config.file("build_version.cc");
@@ -285,36 +287,20 @@ fn build_snappy() {
     config.compile("libsnappy.a");
 }
 
-fn build_lz4() {
-    let mut compiler = cc::Build::new();
-
-    compiler
-        .file("lz4/lib/lz4.c")
-        .file("lz4/lib/lz4frame.c")
-        .file("lz4/lib/lz4hc.c")
-        .file("lz4/lib/xxhash.c");
-
-    compiler.opt_level(3);
-
-    let target = env::var("TARGET").unwrap();
-
-    if &target == "i686-pc-windows-gnu" {
-        compiler.flag("-fno-tree-vectorize");
-    }
-
-    compiler.compile("liblz4.a");
-}
-
 fn try_to_find_and_link_lib(lib_name: &str) -> bool {
-    if let Ok(v) = env::var(&format!("{}_COMPILE", lib_name)) {
+    println!("cargo:rerun-if-env-changed={}_COMPILE", lib_name);
+    if let Ok(v) = env::var(format!("{}_COMPILE", lib_name)) {
         if v.to_lowercase() == "true" || v == "1" {
             return false;
         }
     }
 
-    if let Ok(lib_dir) = env::var(&format!("{}_LIB_DIR", lib_name)) {
+    println!("cargo:rerun-if-env-changed={}_LIB_DIR", lib_name);
+    println!("cargo:rerun-if-env-changed={}_STATIC", lib_name);
+
+    if let Ok(lib_dir) = env::var(format!("{}_LIB_DIR", lib_name)) {
         println!("cargo:rustc-link-search=native={}", lib_dir);
-        let mode = match env::var_os(&format!("{}_STATIC", lib_name)) {
+        let mode = match env::var_os(format!("{}_STATIC", lib_name)) {
             Some(_) => "static",
             None => "dylib",
         };
@@ -412,11 +398,11 @@ fn main() {
             fail_on_empty_directory("snappy");
             build_snappy();
         }
-        if cfg!(feature = "lz4") && !try_to_find_and_link_lib("LZ4") {
-            // println!("cargo:rerun-if-changed=lz4/");
-            fail_on_empty_directory("lz4");
-            build_lz4();
-        }
+//        if cfg!(feature = "lz4") && !try_to_find_and_link_lib("LZ4") {
+  //          // println!("cargo:rerun-if-changed=lz4/");
+    //        fail_on_empty_directory("lz4");
+      //      build_lz4();
+        //}
         let target_dir = PathBuf::from(std::env::var("OUT_DIR").unwrap());
 
         if target.contains("windows") {
