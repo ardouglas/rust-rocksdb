@@ -398,11 +398,11 @@ fn main() {
             fail_on_empty_directory("snappy");
             build_snappy();
         }
-        if cfg!(feature = "lz4") && !try_to_find_and_link_lib("LZ4") {
-            // println!("cargo:rerun-if-changed=lz4/");
-            fail_on_empty_directory("lz4");
-            build_lz4();
-        }
+//        if cfg!(feature = "lz4") && !try_to_find_and_link_lib("LZ4") {
+  //          // println!("cargo:rerun-if-changed=lz4/");
+    //        fail_on_empty_directory("lz4");
+      //      build_lz4();
+        //}
         let target_dir = PathBuf::from(std::env::var("OUT_DIR").unwrap());
 
         if target.contains("windows") {
