@@ -107,7 +107,7 @@ impl Drop for EnvWrapper {
 
 impl Env {
     /// Returns default env
-    pub fn default() -> Result<Self, Error> {
+    pub fn new() -> Result<Self, Error> {
         let env = unsafe { ffi::rocksdb_create_default_env() };
         if env.is_null() {
             Err(Error::new("Could not create mem env".to_owned()))
@@ -635,6 +635,9 @@ impl BlockBasedOptions {
         }
     }
 
+    /// If cache_index_and_filter_blocks is enabled, cache index and filter blocks with high priority.
+    /// If set to true, depending on implementation of block cache,
+    /// index and filter blocks may be less likely to be evicted than data blocks.
     pub fn set_cache_index_and_filter_blocks(&mut self, v: bool) {
         unsafe {
             ffi::rocksdb_block_based_options_set_cache_index_and_filter_blocks(
@@ -860,7 +863,7 @@ impl Default for CuckooTableOptions {
 }
 
 // Verbosity of the LOG.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[repr(i32)]
 pub enum LogLevel {
     Debug = 0,
@@ -3271,7 +3274,7 @@ impl Default for WriteOptions {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde1", derive(serde::Serialize, serde::Deserialize))]
 #[repr(i32)]
 pub enum ReadTier {
@@ -3644,7 +3647,7 @@ pub struct PlainTableFactoryOptions {
     pub index_sparseness: usize,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde1", derive(serde::Serialize, serde::Deserialize))]
 pub enum DBCompressionType {
     None = ffi::rocksdb_no_compression as isize,
@@ -3656,7 +3659,7 @@ pub enum DBCompressionType {
     Zstd = ffi::rocksdb_zstd_compression as isize,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde1", derive(serde::Serialize, serde::Deserialize))]
 pub enum DBCompactionStyle {
     Level = ffi::rocksdb_level_compaction as isize,
@@ -3664,7 +3667,7 @@ pub enum DBCompactionStyle {
     Fifo = ffi::rocksdb_fifo_compaction as isize,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde1", derive(serde::Serialize, serde::Deserialize))]
 pub enum DBRecoveryMode {
     TolerateCorruptedTailRecords = ffi::rocksdb_tolerate_corrupted_tail_records_recovery as isize,
@@ -3674,7 +3677,7 @@ pub enum DBRecoveryMode {
 }
 
 /// File access pattern once a compaction has started
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde1", derive(serde::Serialize, serde::Deserialize))]
 #[repr(i32)]
 pub enum AccessHint {
@@ -3722,7 +3725,7 @@ impl FifoCompactOptions {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde1", derive(serde::Serialize, serde::Deserialize))]
 pub enum UniversalCompactionStopStyle {
     Similar = ffi::rocksdb_similar_size_compaction_stop_style as isize,
@@ -3838,7 +3841,7 @@ impl UniversalCompactOptions {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde1", derive(serde::Serialize, serde::Deserialize))]
 #[repr(u8)]
 pub enum BottommostLevelCompaction {
