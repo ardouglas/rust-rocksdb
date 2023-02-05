@@ -349,6 +349,7 @@ fn main() {
     let current_dir = std::env::current_dir().unwrap();
     let windows_dir = current_dir.join("windows");
     let mac_dir = current_dir.join("mac");
+    let linux_dir = current_dir.join("linux-gnu");
     if target.contains("musl") {
         std::process::Command::new("sh")
             .args(&["build.sh"])
@@ -377,7 +378,11 @@ fn main() {
         println!("cargo:rustc-link-lib=dylib=c++");
         println!("cargo:rustc-link-lib=static=snappy");
         println!("cargo:rustc-link-lib=static=rocksdb");
-        
+    } else if target.contains("linux") && linux_dir.exists() {
+        println!("cargo:rustc-link-search={}", linux_dir.display());
+        println!("cargo:rustc-link-lib=dylib=stdc++");
+        println!("cargo:rustc-link-lib=static=snappy");
+        println!("cargo:rustc-link-lib=static=rocksdb");
     } else {
         if !try_to_find_and_link_lib("ROCKSDB") {
             // println!("cargo:rerun-if-changed=rocksdb/");
@@ -398,11 +403,7 @@ fn main() {
             fail_on_empty_directory("snappy");
             build_snappy();
         }
-//        if cfg!(feature = "lz4") && !try_to_find_and_link_lib("LZ4") {
-  //          // println!("cargo:rerun-if-changed=lz4/");
-    //        fail_on_empty_directory("lz4");
-      //      build_lz4();
-        //}
+
         let target_dir = PathBuf::from(std::env::var("OUT_DIR").unwrap());
 
         if target.contains("windows") {
@@ -421,6 +422,17 @@ fn main() {
             let glob = glob::glob(&pattern).unwrap();
             for path in glob.flatten() {
                 let new = mac_dir.join(&path.file_name().unwrap());
+                std::fs::copy(path, new).unwrap();
+            }
+        } else if target.contains("linux") {
+            if !linux_dir.exists() {
+                std::fs::create_dir(&linux_dir).unwrap();
+            }
+
+            let pattern = format!("{}/*.a", target_dir.display());
+            let glob = glob::glob(&pattern).unwrap();
+            for path in glob.flatten() {
+                let new = linux_dir.join(&path.file_name().unwrap());
                 std::fs::copy(path, new).unwrap();
             }
         }
