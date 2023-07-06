@@ -155,7 +155,7 @@ impl PerfContext {
             let ptr =
                 ffi::rocksdb_perfcontext_report(self.inner, c_uchar::from(exclude_zero_counters));
             let report = from_cstr(ptr);
-            libc::free(ptr as *mut c_void);
+            ffi::rocksdb_free(ptr as *mut c_void);
             report
         }
     }
@@ -249,7 +249,7 @@ impl MemoryUsageBuilder {
     /// Add a cache to collect memory usage from it and add up in total stats
     fn add_cache(&mut self, cache: &Cache) {
         unsafe {
-            ffi::rocksdb_memory_consumers_add_cache(self.inner, cache.0.inner);
+            ffi::rocksdb_memory_consumers_add_cache(self.inner, cache.0.inner.as_ptr());
         }
     }
 

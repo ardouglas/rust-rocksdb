@@ -6,7 +6,7 @@ fn link(name: &str, bundled: bool) {
     let target = var("TARGET").unwrap();
     let target: Vec<_> = target.split('-').collect();
     if target.get(2) == Some(&"windows") {
-        println!("cargo:rustc-link-lib=dylib={}", name);
+        println!("cargo:rustc-link-lib=dylib={name}");
         if bundled && target.get(3) == Some(&"gnu") {
             let dir = var("CARGO_MANIFEST_DIR").unwrap();
             println!("cargo:rustc-link-search=native={}/{}", dir, target[0]);
@@ -16,10 +16,7 @@ fn link(name: &str, bundled: bool) {
 
 fn fail_on_empty_directory(name: &str) {
     if fs::read_dir(name).unwrap().count() == 0 {
-        println!(
-            "The `{}` directory is empty, did you forget to pull the submodules?",
-            name
-        );
+        println!("The `{name}` directory is empty, did you forget to pull the submodules?");
         println!("Try `git submodule update --init --recursive`");
         panic!();
     }
@@ -104,12 +101,15 @@ fn build_rocksdb() {
         .filter(|file| !matches!(*file, "util/build_version.cc"))
         .collect::<Vec<&'static str>>();
 
-    if target.contains("x86_64") {
+    if let (true, Ok(target_feature_value)) = (
+        target.contains("x86_64"),
+        env::var("CARGO_CFG_TARGET_FEATURE"),
+    ) {
         // This is needed to enable hardware CRC32C. Technically, SSE 4.2 is
         // only available since Intel Nehalem (about 2010) and AMD Bulldozer
         // (about 2011).
-        let target_feature = env::var("CARGO_CFG_TARGET_FEATURE").unwrap();
-        let target_features: Vec<_> = target_feature.split(',').collect();
+        let target_features: Vec<_> = target_feature_value.split(',').collect();
+
         if target_features.contains(&"sse2") {
             config.flag_if_supported("-msse2");
         }
@@ -118,24 +118,19 @@ fn build_rocksdb() {
         }
         if target_features.contains(&"sse4.2") {
             config.flag_if_supported("-msse4.2");
-            config.define("HAVE_SSE42", Some("1"));
         }
         // Pass along additional target features as defined in
         // build_tools/build_detect_platform.
         if target_features.contains(&"avx2") {
             config.flag_if_supported("-mavx2");
-            config.define("HAVE_AVX2", Some("1"));
         }
         if target_features.contains(&"bmi1") {
             config.flag_if_supported("-mbmi");
-            config.define("HAVE_BMI", Some("1"));
         }
         if target_features.contains(&"lzcnt") {
             config.flag_if_supported("-mlzcnt");
-            config.define("HAVE_LZCNT", Some("1"));
         }
         if !target.contains("android") && target_features.contains(&"pclmulqdq") {
-            config.define("HAVE_PCLMUL", Some("1"));
             config.flag_if_supported("-mpclmul");
         }
     }
@@ -150,7 +145,7 @@ fn build_rocksdb() {
         config.define("ROCKSDB_PLATFORM_POSIX", None);
         config.define("ROCKSDB_LIB_IO_POSIX", None);
 
-        env::set_var("IPHONEOS_DEPLOYMENT_TARGET", "11.0");
+        env::set_var("IPHONEOS_DEPLOYMENT_TARGET", "12.0");
     } else if target.contains("darwin") {
         config.define("OS_MACOSX", None);
         config.define("ROCKSDB_PLATFORM_POSIX", None);
@@ -229,13 +224,17 @@ fn build_rocksdb() {
         config.define("ROCKSDB_IOURING_PRESENT", Some("1"));
     }
 
+    if env::var("CARGO_CFG_TARGET_POINTER_WIDTH").unwrap() != "64" {
+        config.define("_FILE_OFFSET_BITS", Some("64"));
+        config.define("_LARGEFILE64_SOURCE", Some("1"));
+    }
+
     if target.contains("msvc") {
         config.flag("-EHsc");
         config.flag("-std:c++17");
     } else {
         config.flag(&cxx_standard());
         // matches the flags in CMakeLists.txt from rocksdb
-        config.define("HAVE_UINT128_EXTENSION", Some("1"));
         config.flag("-Wsign-compare");
         config.flag("-Wshadow");
         config.flag("-Wno-unused-parameter");
@@ -288,19 +287,19 @@ fn build_snappy() {
 }
 
 fn try_to_find_and_link_lib(lib_name: &str) -> bool {
-    println!("cargo:rerun-if-env-changed={}_COMPILE", lib_name);
-    if let Ok(v) = env::var(format!("{}_COMPILE", lib_name)) {
+    println!("cargo:rerun-if-env-changed={lib_name}_COMPILE");
+    if let Ok(v) = env::var(format!("{lib_name}_COMPILE")) {
         if v.to_lowercase() == "true" || v == "1" {
             return false;
         }
     }
 
-    println!("cargo:rerun-if-env-changed={}_LIB_DIR", lib_name);
-    println!("cargo:rerun-if-env-changed={}_STATIC", lib_name);
+    println!("cargo:rerun-if-env-changed={lib_name}_LIB_DIR");
+    println!("cargo:rerun-if-env-changed={lib_name}_STATIC");
 
-    if let Ok(lib_dir) = env::var(format!("{}_LIB_DIR", lib_name)) {
-        println!("cargo:rustc-link-search=native={}", lib_dir);
-        let mode = match env::var_os(format!("{}_STATIC", lib_name)) {
+    if let Ok(lib_dir) = env::var(format!("{lib_name}_LIB_DIR")) {
+        println!("cargo:rustc-link-search=native={lib_dir}");
+        let mode = match env::var_os(format!("{lib_name}_STATIC")) {
             Some(_) => "static",
             None => "dylib",
         };
@@ -313,7 +312,7 @@ fn try_to_find_and_link_lib(lib_name: &str) -> bool {
 fn cxx_standard() -> String {
     env::var("ROCKSDB_CXX_STD").map_or("-std=c++17".to_owned(), |cxx_std| {
         if !cxx_std.starts_with("-std=") {
-            format!("-std={}", cxx_std)
+            format!("-std={cxx_std}")
         } else {
             cxx_std
         }
